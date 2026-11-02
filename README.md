@@ -3,13 +3,12 @@
 AI-powered DSA learning, code review, debugging and mentoring platform.
 Final-year B.Tech CSE project, built in phases.
 
-**Current status: Phases 25–28 are present** — the frontend uses authenticated
-FastAPI services, including persisted Progress analytics and on-demand AI
-recommendations. The backend includes Groq, Chroma RAG, private memory,
-persisted submissions, security handling, and Docker Compose/Nginx deployment
-files. Dashboard analytics, community comparisons, password reset, and parts
-of Interview Mode remain demo or unavailable; see `backend/README.md` and
-`deploy/README.md`.
+**Current status: Phases 25–29 are present** — the frontend uses authenticated
+FastAPI services, including persisted Dashboard and Progress analytics and
+on-demand AI recommendations. The backend includes Groq, Chroma RAG, private
+memory, persisted submissions, security handling, and Docker Compose/Nginx
+deployment files. Community comparisons, password reset, and parts of Interview
+Mode remain demo or unavailable; see `backend/README.md` and `deploy/README.md`.
 
 ## Backend
 
@@ -123,14 +122,22 @@ distribution, weekly accepted solve times, topic mastery, and recent
 improvements. Accounts without submission history see empty-state guidance
 instead of fabricated metrics. AI recommendations are requested on demand
 from `/api/progress/recommendations`, using aggregate metrics without source
-code. Dashboard analytics remain demo data for a later phase.
+code.
+
+## Live Dashboard (Phase 29)
+
+The Dashboard combines the authenticated progress summary, problem catalog,
+and recent submission history. It shows real stats and activity, difficulty
+completion against the catalog, topic-based suggestions drawn from unsolved
+problems, recent improvements, and on-demand AI recommendations. Its suggested
+problems are a transparent topic-priority rule, not AI-generated selections.
 
 ## Admin and remaining demos
 
 Admin problem and RAG knowledge management now call protected backend
 CRUD APIs. The browser route guard is for navigation only; server role
-checks provide the security boundary. Dashboard analytics, community
-comparison, password reset, and the interviewer's opening,
+checks provide the security boundary. Community comparison, password reset,
+and the interviewer's opening,
 follow-up, and final feedback remain demo or unavailable features. The
 multi-agent architecture is displayed as planned; Mentor chat currently
 uses one backend endpoint. Code execution accepts complete stdin/stdout
@@ -548,9 +555,9 @@ disabled rather than silently doing nothing.
   Docker Run/Submit and persisted submission history; Groq review, hints,
   debugging, mentor chat, and admin draft generation; Chroma knowledge
   retrieval and explicitly saved, per-user memory; persisted per-user
-  progress analytics and on-demand AI recommendations.
-- **Still demo or unavailable**: dashboard analytics and
-  community comparisons; interview opening, follow-up, and summary
+  Dashboard and Progress analytics; on-demand AI progress recommendations.
+- **Still demo or unavailable**: community comparisons; interview opening,
+  follow-up, and summary
   feedback; password reset; notifications; search; full solution reveal;
   automatic memory extraction; and multi-agent orchestration/critic.
 - **Execution contract**: Docker runs complete programs that read stdin
