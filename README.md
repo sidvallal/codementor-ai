@@ -3,12 +3,13 @@
 AI-powered DSA learning, code review, debugging and mentoring platform.
 Final-year B.Tech CSE project, built in phases.
 
-**Current status: Phases 25–29 are present** — the frontend uses authenticated
-FastAPI services, including persisted Dashboard and Progress analytics and
-on-demand AI recommendations. The backend includes Groq, Chroma RAG, private
-memory, persisted submissions, security handling, and Docker Compose/Nginx
-deployment files. Community comparisons, password reset, and parts of Interview
-Mode remain demo or unavailable; see `backend/README.md` and `deploy/README.md`.
+**Current status: Phases 25–30 are present** — the frontend uses authenticated
+FastAPI services, including persisted Dashboard and Progress analytics,
+on-demand AI recommendations, and live Interview Mode chat, judging, and
+feedback. The backend includes Groq, Chroma RAG, private memory, persisted
+submissions, security handling, and Docker Compose/Nginx deployment files.
+Company-specific question banks, voice input, and password reset remain
+unavailable; see `backend/README.md` and `deploy/README.md`.
 
 ## Backend
 
@@ -47,8 +48,8 @@ requests. Never put Groq credentials in `VITE_*` variables. See
 The first RAG or memory request may download/load the configured local
 embedding model. Groq features need a backend-only `GROQ_API_KEY`.
 Password reset has no email/token backend and is unavailable. Dashboard
-analytics, community comparison, and most interview conversation/feedback
-remain clearly labeled demo/planned features.
+analytics, community comparison, company-specific interview banks, and voice
+input remain clearly labeled demo/planned or unavailable features.
 
 ## Folder structure
 
@@ -132,16 +133,25 @@ completion against the catalog, topic-based suggestions drawn from unsolved
 problems, recent improvements, and on-demand AI recommendations. Its suggested
 problems are a transparent topic-priority rule, not AI-generated selections.
 
+## Live Interview Mode (Phase 30)
+
+Interview Mode now uses the authenticated mentor endpoint for its opening and
+follow-up questions, the real Docker-backed submission endpoint for scoring,
+and code review plus transcript-based AI feedback for its summary. The judge
+result is persisted in the user's submission history. If an AI feedback call
+fails after scoring, the summary still appears and identifies the unavailable
+feedback. Problem selection requires a complete statement, examples, and
+constraints. Company-specific question banks and voice input are not included.
+
 ## Admin and remaining demos
 
 Admin problem and RAG knowledge management now call protected backend
 CRUD APIs. The browser route guard is for navigation only; server role
 checks provide the security boundary. Community comparison, password reset,
-and the interviewer's opening,
-follow-up, and final feedback remain demo or unavailable features. The
-multi-agent architecture is displayed as planned; Mentor chat currently
-uses one backend endpoint. Code execution accepts complete stdin/stdout
-programs and does not adapt function-only snippets.
+voice input, and company-specific interview question banks remain unavailable.
+The multi-agent architecture is displayed as planned; Mentor and Interview
+chat currently use the same backend chat endpoint. Code execution accepts
+complete stdin/stdout programs and does not adapt function-only snippets.
 - `problemStore.js` (new) wraps the problem catalog with real
   `createProblem`/`updateProblem`/`deleteProblem` — Problems,
   ProblemDetail, and Interview Mode all now read through it, so an
@@ -157,11 +167,9 @@ goes back to nothing — all by actually calling the functions, not by
 reading the code and assuming it's connected.
 
 **Test cases** (create/hide/unhide) are real *data* on a problem now,
-editable in the admin form with a per-case hidden toggle — but honestly
-labeled as architecture only, since the mock execution engine
-(`submissionService.js`) still simulates pass/fail rather than running
-against real test data. Wiring them together is Phase 21's job (real
-execution), not this one's.
+editable in the admin form with a per-case hidden toggle. Phase 21's Docker
+judge executes public cases on Run and all cases on Submit; hidden case data
+is not returned to the client. Interview Mode now uses the same real judge.
 
 **Generate + review, not generate + auto-publish**: `generateProblemDraft()`
 deliberately produces a rough draft with placeholder example/constraint/
@@ -179,15 +187,18 @@ topic-based charts elsewhere.
 
 ## Interview Mode (Phase 17)
 
+This section records the original Phase 17 implementation. Phase 30 now
+replaces its mock interviewer turns, judge, and final feedback with authenticated
+backend calls; the company-bank and voice limitations described below still apply.
+
 A real timed session: setup (difficulty + topic focus) → session (timer,
 problem, AI interviewer chat, code editor, one controlled hint) →
 performance summary (execution result, time-vs-limit, AI feedback in 4
 sections). Almost none of this invents new mock machinery — it reuses
 what already exists and works:
 - The **code editor** is the exact same Monaco component from Phase 7.
-- **Scoring** runs through the exact same mock execution engine from
-  Phase 8 (`submissionService.js`) — an interview problem is still just
-  a problem.
+- **Scoring** uses the persisted backend Docker judge and is saved to the
+  signed-in user's submission history.
 - The **one controlled hint** reuses Phase 11's real hint content
   (always level 1 — the smallest clue, not the full graduated menu),
   capped at 1 use per interview and shown in the summary, which is what
@@ -202,20 +213,13 @@ over the catalog) and treats no-topic-selected as the general,
 company-agnostic mode, rather than inventing fake company-branded
 content. Said plainly in the setup screen, not buried in a comment.
 
-**Voice, per the spec's explicit instruction**: architecture only, no
-implementation. `getInterviewerFollowUp()` accepts an `inputMode` option
-(`'text'` today) specifically so a real voice mode could pass
-transcribed text through the same function later without changing any
-call site; passing `'voice'` today throws rather than pretending to
-work. The mic button in the UI is visibly disabled with a tooltip
-explaining why.
+**Voice** remains unavailable. The mic button is disabled and explains this
+in the UI.
 
-**Question pool, honestly scoped**: only the 6 problems with a full
-written statement (Phase 6) are used — an interview question with no
-real description would be a worse experience than a smaller, honest
-pool. Verified the picker falls back gracefully (rather than crashing
-or returning nothing) when a difficulty+topic combination matches none
-of those 6.
+**Question pool, honestly scoped**: the starter catalog has six problems
+with a complete written statement, examples, and constraints. The Phase 30
+picker also allows future admin-added problems that meet the same bar, and
+reports an error when a chosen difficulty/topic has no eligible question.
 
 ## Learning Progress (Phase 16)
 
@@ -553,13 +557,14 @@ disabled rather than silently doing nothing.
 - **Real backend flows**: JWT signup/sign-in and `/me` validation;
   server-protected problem and RAG admin APIs; per-user problem status;
   Docker Run/Submit and persisted submission history; Groq review, hints,
-  debugging, mentor chat, and admin draft generation; Chroma knowledge
-  retrieval and explicitly saved, per-user memory; persisted per-user
+  debugging, mentor chat, live interview chat and feedback, and admin draft
+  generation; Chroma knowledge retrieval and explicitly saved, per-user
+  memory; persisted per-user
   Dashboard and Progress analytics; on-demand AI progress recommendations.
-- **Still demo or unavailable**: community comparisons; interview opening,
-  follow-up, and summary
-  feedback; password reset; notifications; search; full solution reveal;
-  automatic memory extraction; and multi-agent orchestration/critic.
+- **Still demo or unavailable**: community comparisons; company-specific
+  interview banks and voice input; password reset; notifications; search;
+  full solution reveal; automatic memory extraction; and multi-agent
+  orchestration/critic.
 - **Execution contract**: Docker runs complete programs that read stdin
   and write stdout. Existing function-only starter snippets are not
   adapted automatically. Problems without configured test cases return

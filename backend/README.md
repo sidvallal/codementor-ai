@@ -1,6 +1,6 @@
 # CodeMentor AI backend
 
-FastAPI backend for CodeMentor AI. Phases 21-25 add code execution, Groq, RAG, private memory, and frontend integration. Phase 26 adds security/error handling checks and tests. Phase 27 adds container and deployment preparation. Phase 16 progress analytics use persisted submissions; interview conversation/feedback and dashboard analytics remain demos.
+FastAPI backend for CodeMentor AI. Phases 21-25 add code execution, Groq, RAG, private memory, and frontend integration. Phase 26 adds security/error handling checks and tests. Phase 27 adds container and deployment preparation. Progress, Dashboard, and Interview Mode use persisted submissions; interview chat and code feedback call the authenticated Groq-backed AI endpoints.
 
 ## Execution contract
 
@@ -241,9 +241,10 @@ AI recommendations are an explicit action and send no source code.
 
 The browser stores bearer tokens in local storage for this integration;
 an httpOnly cookie/session flow is outside this phase. Password reset,
-dashboard analytics, community solving-time statistics, and multi-agent
-routing are not active backend flows. API errors are displayed
-to the user rather than replaced with mock successes.
+community solving-time comparisons, and multi-agent routing are not active
+backend flows. Dashboard and Progress metrics, Interview judging, and AI
+feedback use authenticated backend routes. API errors are displayed to the
+user rather than replaced with mock successes.
 
 All execution limits are in `backend/.env.example` with conservative local defaults: 3 seconds per test, 20 seconds compile time, 180 seconds per job, 256 MiB memory, 0.5 CPU, 32 processes, 32 KiB output, 50 cases, and 2 active jobs per API process. These are environment-configurable through the `EXECUTION_*` variables; values should be tuned against the capacity of the Docker host.
 

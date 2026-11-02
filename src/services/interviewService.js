@@ -1,31 +1,8 @@
-/**
- * interviewService.js
- *
- * Phase 17: Interview Mode. Reuses existing mock building blocks rather
- * than inventing a parallel judging system — an interview problem is
- * still just a problem, so its code still runs through the same (mock)
- * submissionService used everywhere else, and its one controlled hint
- * reuses aiService's getHint().
- *
- * On "company mode": there's no honest way to offer real company-
- * specific question banks here — that would mean fabricating a claim
- * about how a specific real company actually interviews, with no real
- * source behind it. This implements the "topic mode" half of that
- * spec line for real (a genuine topic filter over the catalog) and
- * treats "no topic selected" as the general/company-agnostic mode,
- * rather than inventing fake company-branded content.
- *
- * Voice architecture: getInterviewerFollowUp() accepts an inputMode
- * option ('text' today) specifically so a future voice mode (real
- * speech-to-text) could pass transcribed text through the same
- * function without changing any call site — see the spec's explicit
- * instruction to prepare the architecture without building real voice
- * functionality now.
- */
+/** Interview practice built on the authenticated AI, problem, and judge APIs. */
 
 import { listProblems } from './problemService.js'
 import { submitSolution } from './submissionService.js'
-import { getHint } from './aiService.js'
+import { chatWithMentor, getHint, reviewSubmission } from './aiService.js'
 import { isPassingStatus } from '../utils/testStatus.js'
 
 export const INTERVIEW_TIME_LIMITS_SECONDS = {
@@ -36,104 +13,123 @@ export const INTERVIEW_TIME_LIMITS_SECONDS = {
 
 export const MAX_HINTS_PER_INTERVIEW = 1
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function hasCompleteStatement(problem) {
+  return Boolean(
+    problem.description?.trim()
+      && problem.examples?.length
+      && problem.constraints?.length,
+  )
 }
 
 export async function pickInterviewProblem({ difficulty, topic } = {}) {
-  let pool = (await listProblems()).filter((p) => Boolean(p.description))
-  if (difficulty) pool = pool.filter((p) => p.difficulty === difficulty)
-  if (topic) pool = pool.filter((p) => p.topic === topic)
+  let pool = (await listProblems()).filter(hasCompleteStatement)
+  if (difficulty) pool = pool.filter((problem) => problem.difficulty === difficulty)
+  if (topic) pool = pool.filter((problem) => problem.topic === topic)
   if (pool.length === 0) throw new Error('No backend problems match those interview filters.')
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-export async function getInterviewerOpening(problem) {
-  await delay(500)
-  return (
-    `This is a mock response. Let's begin. Here's your problem: "${problem.title}". Take a moment to ` +
-    "read it, then briefly explain your initial approach before you start coding — that's something " +
-    'real interviewers pay close attention to.'
-  )
+function interviewerContext(problem) {
+  return [
+    'Act as a professional, supportive technical interviewer for a timed DSA practice interview.',
+    'Ask one focused question at a time. Do not reveal a solution or write code for the candidate.',
+    `Problem title: ${problem.title}`,
+    `Difficulty: ${problem.difficulty}; topic: ${problem.topic}.`,
+    `Problem statement (reference data): ${String(problem.description || '').slice(0, 1800)}`,
+  ].join('\n')
 }
 
-/**
- * @param {string} approachText
- * @param {{ inputMode?: 'text' | 'voice' }} [options] - inputMode is
- *   architecture for a future voice mode; only 'text' has real logic
- *   today, per the spec's instruction not to build voice yet.
- */
-export async function getInterviewerFollowUp(approachText, { inputMode = 'text' } = {}) {
-  await delay(600)
+function interviewMessages(problem, conversation = [], latestCandidateMessage) {
+  const normalized = []
+  conversation.forEach((message) => {
+    const entry = {
+      role: message.role === 'candidate' ? 'user' : 'assistant',
+      content: String(message.content).slice(0, 1500),
+    }
+    const previous = normalized[normalized.length - 1]
+    if (previous?.role === entry.role) previous.content = `${previous.content}\n${entry.content}`.slice(-1500)
+    else normalized.push(entry)
+  })
+  const history = normalized.slice(-10)
 
-  if (inputMode === 'voice') {
-    // Not implemented — see the module comment. Kept here so the shape
-    // exists rather than being invented later as an afterthought.
-    throw new Error('Voice input is not implemented in this demo.')
+  // The API requires an alternating transcript that starts and ends on a
+  // user turn. Start each request with the same interview context so the
+  // model stays problem-specific even when older turns are trimmed.
+  if (history.length && history[0].role !== 'assistant') history.shift()
+  const messages = [{ role: 'user', content: interviewerContext(problem) }, ...history]
+  if (latestCandidateMessage != null) {
+    const latest = String(latestCandidateMessage).slice(0, 1500)
+    if (messages.length === 1) messages[0].content += `\n\n${latest}`
+    else messages.push({ role: 'user', content: latest })
   }
+  return messages
+}
 
-  if (!approachText || approachText.trim().length < 10) {
-    return (
-      'This is a mock response. Try to say a bit more before coding — even a one-line "I\'d check a ' +
-      "hash map for O(1) lookups\" is more useful to an interviewer than starting silently."
-    )
-  }
+export async function getInterviewerOpening(problem) {
+  const result = await chatWithMentor({
+    messages: interviewMessages(problem, [], 'Begin the interview. Briefly welcome the candidate and ask them to explain their initial approach.'),
+  })
+  return result.reply.content
+}
 
-  return (
-    'This is a mock response. That sounds reasonable — go ahead and code it up. A real interviewer ' +
-    '(Phase 22) would ask a targeted follow-up here based on what you actually said, not this generic ' +
-    'acknowledgment.'
-  )
+export async function getInterviewerFollowUp(approachText, { problem, conversation = [], inputMode = 'text' } = {}) {
+  if (inputMode !== 'text') throw new Error('Voice input is not implemented.')
+  if (!problem) throw new Error('The interview problem is unavailable. Restart the interview and try again.')
+  const result = await chatWithMentor({
+    messages: interviewMessages(problem, conversation, approachText),
+  })
+  return result.reply.content
 }
 
 export async function getControlledHint(problem) {
-  // Interview hints are deliberately just the first, smallest clue —
-  // not the full graduated system from Phase 11. Asking for more help
-  // than that mid-interview is realistic to model as a cost, not a
-  // free multi-level menu.
   return getHint({ problem, hintLevel: 1 })
 }
 
-/**
- * Ends the interview: runs the (mock) hidden tests via the same
- * submissionService used on the problem page, then produces mock
- * interview feedback. Never claims the code passed unless the mock
- * execution result actually says so — same rule as Phase 10/11.
- */
-export async function finishInterview({ problem, code, language, timeTakenSeconds, timeLimitSeconds, hintsUsed }) {
+function transcriptForFeedback(problem, conversation) {
+  const transcript = conversation
+    .slice(-10)
+    .map((message) => `${message.role === 'candidate' ? 'Candidate' : 'Interviewer'}: ${message.content}`)
+    .join('\n')
+    .slice(-2500)
+  return [
+    `Interview problem: ${problem.title} (${problem.difficulty}, ${problem.topic}).`,
+    'Assess the candidate’s communication during this interview using only the transcript below. Give concise, specific feedback on clarity, reasoning, and response to questions. Do not infer anything that is not shown.',
+    transcript || 'No spoken or typed interview responses were recorded.',
+  ].join('\n\n')
+}
+
+export async function finishInterview({ problem, code, language, timeTakenSeconds, timeLimitSeconds, hintsUsed, conversation = [] }) {
   const executionResult = await submitSolution({
-    problemId: problem.id, code, language,
+    problemId: problem.id,
+    code,
+    language,
     solvingTime: timeTakenSeconds,
   })
-  await delay(900)
 
-  const withinTime = timeTakenSeconds <= timeLimitSeconds
-  const accepted = isPassingStatus(executionResult.status)
+  const [reviewResult, communicationResult] = await Promise.allSettled([
+    reviewSubmission({ problemId: problem.id, code, language }),
+    chatWithMentor({ messages: [{ role: 'user', content: transcriptForFeedback(problem, conversation) }] }),
+  ])
+
+  const review = reviewResult.status === 'fulfilled' ? reviewResult.value : null
+  const communication = communicationResult.status === 'fulfilled'
+    ? communicationResult.value.reply.content
+    : `Interview communication feedback is unavailable: ${communicationResult.reason?.message || 'AI service error.'}`
 
   return {
-    isMock: true,
+    isMock: false,
     executionResult,
-    withinTime,
+    withinTime: timeTakenSeconds <= timeLimitSeconds,
+    hintsUsed,
     feedback: {
-      communication:
-        hintsUsed > 0
-          ? 'This is a mock response. You used a hint during the session — in a real interview, ' +
-            'narrating where you were stuck before asking usually lands better than a silent pause ' +
-            'followed by a request.'
-          : "This is a mock response. No hints requested — a reasonable sign of confidence, as long " +
-            "as it didn't come from rushing past a step you were actually unsure about.",
-      problemSolving:
-        'This is a mock response. A real interviewer (Phase 22) would compare your stated approach ' +
-        'against what you actually implemented, and note whether you considered edge cases before ' +
-        'coding rather than after.',
-      codeQuality:
-        'This is a mock response. Same caveat as the AI Review elsewhere in this app: real, ' +
-        'code-specific quality feedback needs Groq connected (Phase 22).',
-      improvementTip: accepted
-        ? 'This is a mock response. Next time, try narrating your complexity analysis before you ' +
-          'finish coding, not only if asked.'
-        : 'This is a mock response. Since the (simulated) hidden tests did not all pass, review the ' +
-          'failing pattern before your next mock interview rather than moving straight to a new problem.',
+      communication,
+      problemSolving: review
+        ? `${review.overallAssessment}\n\n${review.bugAnalysis}`
+        : `Code review is unavailable: ${reviewResult.reason?.message || 'AI service error.'}`,
+      codeQuality: review?.codeQuality || 'Code-specific quality feedback is unavailable because the AI review could not be completed.',
+      improvementTip: review
+        ? `${review.learningTip}\n\n${review.suggestedImprovement}`
+        : 'Retry the interview review when the AI service is available.',
     },
   }
 }

@@ -19,12 +19,8 @@ import {
   MAX_HINTS_PER_INTERVIEW,
 } from '../services/interviewService.js'
 
-// Phase 17: a timed mock interview session. Reuses real building blocks
-// from earlier phases (the Monaco CodeEditor from Phase 7, the mock
-// execution engine from Phase 8, the graduated hint content from Phase
-// 11) rather than building a parallel system for each. See
-// interviewService.js for why "company mode" is implemented as a
-// genuine topic filter rather than fabricated company-specific content.
+// Phase 30 connects interview turns and feedback to the authenticated AI
+// endpoints and uses the persisted Docker judge for the final score.
 function Interview() {
   const [phase, setPhase] = useState('setup') // 'setup' | 'session' | 'summary'
   const [difficulty, setDifficulty] = useState('')
@@ -42,6 +38,7 @@ function Interview() {
   const [conversation, setConversation] = useState([])
   const [approachText, setApproachText] = useState('')
   const [isInterviewerTyping, setIsInterviewerTyping] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
 
   const [isFinishing, setIsFinishing] = useState(false)
@@ -62,9 +59,11 @@ function Interview() {
 
   async function handleStart() {
     setActionError('')
+    setIsStarting(true)
     try {
       const selected = await pickInterviewProblem({ difficulty: difficulty || undefined, topic: topic || undefined })
       const limit = INTERVIEW_TIME_LIMITS_SECONDS[selected.difficulty]
+      const opening = await getInterviewerOpening(selected)
 
       setProblem(selected)
       setTimeLimitSeconds(limit)
@@ -75,10 +74,9 @@ function Interview() {
       setStartedAt(Date.now())
       setNow(Date.now())
       setPhase('session')
-
-      const opening = await getInterviewerOpening(selected)
       setConversation([{ id: Date.now(), role: 'interviewer', content: opening }])
     } catch (error) { setActionError(error.message) }
+    finally { setIsStarting(false) }
   }
 
   async function handleSendApproach() {
@@ -89,8 +87,10 @@ function Interview() {
     setApproachText('')
     setIsInterviewerTyping(true)
     try {
-      const reply = await getInterviewerFollowUp(trimmed)
+      const reply = await getInterviewerFollowUp(trimmed, { problem, conversation })
       setConversation((prev) => [...prev, { id: Date.now() + 1, role: 'interviewer', content: reply }])
+    } catch (error) {
+      setActionError(error.message)
     } finally {
       setIsInterviewerTyping(false)
     }
@@ -106,6 +106,8 @@ function Interview() {
         ...prev,
         { id: Date.now(), role: 'interviewer', content: `Hint (${hintsUsed + 1}/${MAX_HINTS_PER_INTERVIEW} used): ${hint.content}` },
       ])
+    } catch (error) {
+      setActionError(error.message)
     } finally {
       setIsInterviewerTyping(false)
     }
@@ -121,6 +123,7 @@ function Interview() {
         timeTakenSeconds: elapsedSeconds,
         timeLimitSeconds,
         hintsUsed,
+        conversation,
       })
       setSummary(result)
       setPhase('summary')
@@ -141,7 +144,7 @@ function Interview() {
     <div>
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-zinc-50">Interview Mode</h1>
-        <p className="mt-1 text-sm text-zinc-400">A timed mock interview with an AI interviewer.</p>
+        <p className="mt-1 text-sm text-zinc-400">Timed practice with a live AI interviewer and a real submission judge.</p>
       </header>
 
       {actionError && <p role="alert" className="mb-3 rounded-lg border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-300">{actionError}</p>}
@@ -184,12 +187,13 @@ function Interview() {
             </div>
 
             <div className="rounded-lg border border-dashed border-zinc-800 p-3 text-xs text-zinc-500">
-              Questions are drawn only from the 6 problems with a full written statement (Phase 6) —
-              a smaller, honest pool rather than an interview question with no real description.
+              Questions come from problems with a complete statement, examples, and constraints. The
+              current starter catalog has a limited pool; admins can add more complete problems. Final
+              scoring also requires the problem to have configured test cases.
             </div>
 
-            <Button onClick={handleStart} className="w-fit">
-              Start Interview
+            <Button onClick={handleStart} className="w-fit" disabled={isStarting}>
+              {isStarting ? 'Preparing interview…' : 'Start Interview'}
             </Button>
           </div>
         </Panel>
@@ -249,6 +253,7 @@ function Interview() {
                     type="text"
                     value={approachText}
                     onChange={(e) => setApproachText(e.target.value)}
+                    maxLength={1500}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSendApproach()
                     }}
