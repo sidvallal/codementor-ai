@@ -3,11 +3,11 @@
 AI-powered DSA learning, code review, debugging and mentoring platform.
 Final-year B.Tech CSE project, built in phases.
 
-**Current status: Phases 25–30 are present** — the frontend uses authenticated
+**Current status: Phases 25–31 are present** — the frontend uses authenticated
 FastAPI services, including persisted Dashboard and Progress analytics,
-on-demand AI recommendations, and live Interview Mode chat, judging, and
-feedback. The backend includes Groq, Chroma RAG, private memory, persisted
-submissions, security handling, and Docker Compose/Nginx deployment files.
+on-demand AI recommendations, live Interview Mode chat/judging/feedback, and
+global problem search. The backend includes Groq, Chroma RAG, private memory,
+persisted submissions, security handling, and Docker Compose/Nginx deployment files.
 Company-specific question banks, voice input, and password reset remain
 unavailable; see `backend/README.md` and `deploy/README.md`.
 
@@ -142,6 +142,13 @@ result is persisted in the user's submission history. If an AI feedback call
 fails after scoring, the summary still appears and identifies the unavailable
 feedback. Problem selection requires a complete statement, examples, and
 constraints. Company-specific question banks and voice input are not included.
+
+## Global Problem Search (Phase 31)
+
+The header search loads the signed-in user's problem catalog on focus and filters
+by problem title, topic, or difficulty. Results link directly to the problem
+page and support keyboard navigation. Search errors are shown in the result
+panel, with no mock results or client-side fallback.
 
 ## Admin and remaining demos
 
@@ -562,7 +569,7 @@ disabled rather than silently doing nothing.
   memory; persisted per-user
   Dashboard and Progress analytics; on-demand AI progress recommendations.
 - **Still demo or unavailable**: community comparisons; company-specific
-  interview banks and voice input; password reset; notifications; search;
+  interview banks and voice input; password reset; notifications;
   full solution reveal; automatic memory extraction; and multi-agent
   orchestration/critic.
 - **Execution contract**: Docker runs complete programs that read stdin

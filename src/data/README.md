@@ -1,8 +1,8 @@
-Local mock/static data. Currently holds `navigation.js` (shared
-sidebar/drawer nav config, Phase 2), `dashboardMockData.js` (fabricated
-Dashboard stats/activity, Phase 4), `problemsMockData.js` (the demo
-catalog + starter code, Phases 5-7), `languages.js` (shared editor
-language list, Phase 9), and `progressMockData.js` (fabricated
-analytics for the Progress page, Phase 16 — kept numerically consistent
-with dashboardMockData.js where they overlap). All of it is fabricated
-— none comes from a real account or database yet.
+Shared static frontend data:
+
+- `navigation.js` defines sidebar and drawer links.
+- `problemsMockData.js` provides topic/difficulty taxonomies and starter-code
+  defaults. The live problem catalog comes from `problemService.js`.
+- `languages.js` defines the editor language options.
+- `dashboardMockData.js` and `progressMockData.js` are historical demo data;
+  Dashboard and Progress now read authenticated backend APIs.
