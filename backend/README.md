@@ -71,7 +71,7 @@ The seed script creates local-only demo users, including `admin@example.com` wit
 4. Call `/api/submissions/submit` with the same code. Expect `Accepted`, two passed tests, and no hidden test data in the response.
 5. Submit `print(1)` and expect `Wrong Answer`; submit `while True: pass` and expect `Time Limit Exceeded` after the configured time limit.
 
-The seeded 29 problems do not contain judged test cases. Add cases through the admin problem API before running them. The React Run/Submit panel is still mock-driven in this phase and does not call these endpoints yet.
+The seeded 29 problems do not contain judged test cases. Add cases through the admin problem API before running them. The React Run/Submit panel calls these endpoints; progress analytics also read persisted submissions from `/api/progress/me`.
 
 ## Configuration
 

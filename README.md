@@ -3,12 +3,13 @@
 AI-powered DSA learning, code review, debugging and mentoring platform.
 Final-year B.Tech CSE project, built in phases.
 
-**Current status: Phases 25–27 are present** — the frontend uses authenticated
-FastAPI services, the backend includes Groq, Chroma RAG, private memory,
-persisted submissions and progress, and the repository includes security
-handling plus Docker Compose/Nginx deployment files. Dashboard analytics,
-community comparisons, password reset, and parts of Interview Mode remain
-demo or unavailable; see `backend/README.md` and `deploy/README.md`.
+**Current status: Phases 25–28 are present** — the frontend uses authenticated
+FastAPI services, including persisted Progress analytics and on-demand AI
+recommendations. The backend includes Groq, Chroma RAG, private memory,
+persisted submissions, security handling, and Docker Compose/Nginx deployment
+files. Dashboard analytics, community comparisons, password reset, and parts
+of Interview Mode remain demo or unavailable; see `backend/README.md` and
+`deploy/README.md`.
 
 ## Backend
 
@@ -47,8 +48,8 @@ requests. Never put Groq credentials in `VITE_*` variables. See
 The first RAG or memory request may download/load the configured local
 embedding model. Groq features need a backend-only `GROQ_API_KEY`.
 Password reset has no email/token backend and is unavailable. Dashboard
-and Progress analytics, community comparison, and most interview
-conversation/feedback remain clearly labeled demo/planned features.
+analytics, community comparison, and most interview conversation/feedback
+remain clearly labeled demo/planned features.
 
 ## Folder structure
 
@@ -114,12 +115,22 @@ Password reset remains unavailable because no reset email/token API is
 implemented. For production, replace browser-readable token storage with
 an httpOnly cookie/session flow and add CSRF protections as appropriate.
 
+## Persisted Progress (Phase 28)
+
+The Progress page reads the authenticated user's saved submission analytics
+from `/api/progress/me`: solved count, accuracy, streak, difficulty
+distribution, weekly accepted solve times, topic mastery, and recent
+improvements. Accounts without submission history see empty-state guidance
+instead of fabricated metrics. AI recommendations are requested on demand
+from `/api/progress/recommendations`, using aggregate metrics without source
+code. Dashboard analytics remain demo data for a later phase.
+
 ## Admin and remaining demos
 
 Admin problem and RAG knowledge management now call protected backend
 CRUD APIs. The browser route guard is for navigation only; server role
-checks provide the security boundary. Dashboard/Progress analytics,
-community comparison, password reset, and the interviewer's opening,
+checks provide the security boundary. Dashboard analytics, community
+comparison, password reset, and the interviewer's opening,
 follow-up, and final feedback remain demo or unavailable features. The
 multi-agent architecture is displayed as planned; Mentor chat currently
 uses one backend endpoint. Code execution accepts complete stdin/stdout
